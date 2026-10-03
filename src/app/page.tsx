@@ -75,12 +75,12 @@ export default function Home() {
 
     setIsSending(true);
     try {
-      const response = await fetch('/api/messages/send', {
+      const response = await fetch('/api/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           serviceCode,
-          phoneNumbers: contacts,
+          contacts,
           message
         })
       });
