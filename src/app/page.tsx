@@ -11,6 +11,7 @@ export default function Home() {
   const [fileName, setFileName] = useState('');
   const [message, setMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isSending, setIsSending] = useState(false);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -57,6 +58,49 @@ export default function Home() {
     });
 
     setContacts([...numbers]);
+  };
+
+  const handleSend = async () => {
+    if (contacts.length === 0 || !message.trim()) {
+      alert("Please upload contacts and write a message.");
+      return;
+    }
+
+    const serviceCode = localStorage.getItem('client_user');
+    if (!serviceCode) {
+      alert("Session expired. Please log in again.");
+      router.push('/login');
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      const response = await fetch('/api/messages/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          serviceCode,
+          phoneNumbers: contacts,
+          message
+        })
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        alert("Success! Messages have been sent successfully!");
+        setContacts([]);
+        setMessage('');
+        setFileName('');
+      } else {
+        alert("Error: " + result.error);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while sending messages.");
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -138,11 +182,16 @@ export default function Home() {
             </p>
           </div>
 
-          <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '18px', opacity: contacts.length === 0 ? 0.5 : 1, cursor: contacts.length === 0 ? 'not-allowed' : 'pointer' }} disabled={contacts.length === 0}>
+          <button 
+            onClick={handleSend}
+            className="btn-primary" 
+            style={{ width: '100%', justifyContent: 'center', padding: '18px', opacity: (contacts.length === 0 || isSending) ? 0.5 : 1, cursor: (contacts.length === 0 || isSending) ? 'not-allowed' : 'pointer' }} 
+            disabled={contacts.length === 0 || isSending}
+          >
             <svg className="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
             </svg>
-            Send to {contacts.length} Contacts
+            {isSending ? 'Sending...' : `Send to ${contacts.length} Contacts`}
           </button>
         </section>
 
