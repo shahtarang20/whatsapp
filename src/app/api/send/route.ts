@@ -64,15 +64,15 @@ export async function POST(req: Request) {
       // Clean phone number
       const formattedPhone = phone.toString().replace(/\D/g, '');
 
-      // Send the custom text message to WhatsApp!
+      // Send the pre-approved template message to bypass Meta's 24hr restriction!
       const payload = {
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
         to: formattedPhone,
-        type: 'text',
-        text: {
-          preview_url: false,
-          body: message
+        type: 'template',
+        template: {
+          name: 'hello_world',
+          language: { code: 'en_US' }
         }
       };
 
