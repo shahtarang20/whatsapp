@@ -58,20 +58,21 @@ export async function POST(req: Request) {
     const url = `https://graph.facebook.com/v17.0/${PHONE_ID}/messages`;
     let sentCount = 0;
     let failCount = 0;
+    let lastError = '';
 
     for (const phone of contacts) {
       // Clean phone number
       const formattedPhone = phone.toString().replace(/\D/g, '');
 
-      // Send the custom text message to WhatsApp!
+      // Send the pre-approved template message to bypass Meta's 24hr restriction!
       const payload = {
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
         to: formattedPhone,
-        type: 'text',
-        text: {
-          preview_url: false,
-          body: message
+        type: 'template',
+        template: {
+          name: 'hello_world',
+          language: { code: 'en_US' }
         }
       };
 
@@ -89,8 +90,13 @@ export async function POST(req: Request) {
       } else {
         const errText = await res.text();
         console.error('Meta API Error:', errText);
+        lastError = errText;
         failCount++;
       }
+    }
+
+    if (failCount > 0) {
+      return NextResponse.json({ success: false, error: 'Meta blocked the message: ' + lastError }, { status: 400 });
     }
 
     // Add to their total usage count
