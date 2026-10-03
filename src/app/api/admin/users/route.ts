@@ -8,7 +8,7 @@ export async function GET() {
     await connectToDatabase();
     const users = await User.find({ role: 'client' }).sort({ createdAt: -1 });
     return NextResponse.json({ success: true, users });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ success: false, error: 'Failed to fetch users' }, { status: 500 });
   }
 }
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   try {
     const { email, phone, password, messageCap, metaPhoneId } = await req.json();
     await connectToDatabase();
-    
+
     // Generate a unique 6-character alphanumeric service code
     const serviceCode = 'SP-' + crypto.randomBytes(3).toString('hex').toUpperCase();
 
@@ -33,8 +33,9 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ success: true, user: newUser });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ success: false, error: message }, { status: 400 });
   }
 }
 
@@ -42,15 +43,16 @@ export async function PATCH(req: Request) {
   try {
     const { userId, newCap } = await req.json();
     await connectToDatabase();
-    
+
     const updatedUser = await User.findByIdAndUpdate(
-      userId, 
-      { messageCap: Number(newCap) }, 
+      userId,
+      { messageCap: Number(newCap) },
       { new: true }
     );
 
     return NextResponse.json({ success: true, user: updatedUser });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ success: false, error: message }, { status: 400 });
   }
 }

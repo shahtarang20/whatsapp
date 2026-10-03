@@ -1,7 +1,9 @@
 "use client";
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Login() {
+  const router = useRouter();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -20,11 +22,11 @@ export default function Login() {
 
     if (data.success) {
       if (data.user.role === 'admin') {
-        window.location.href = '/admin'; // Automatically redirect Admin
+        router.push('/admin');
       } else {
         // Save client info to local storage
         localStorage.setItem('client_user', JSON.stringify(data.user));
-        window.location.href = '/'; // Automatically redirect Client
+        router.push('/');
       }
     } else {
       setError(data.error || 'Login failed');

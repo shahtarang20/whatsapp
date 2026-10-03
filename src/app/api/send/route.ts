@@ -9,28 +9,42 @@ export async function POST(req: Request) {
     if (!contacts || contacts.length === 0) {
       return NextResponse.json({ success: false, error: 'No contacts provided' }, { status: 400 });
     }
-    
+
     if (!message) {
       return NextResponse.json({ success: false, error: 'Message cannot be empty' }, { status: 400 });
     }
 
+    type UserProfile = {
+      messagesSent: number;
+      messageCap: number;
+      metaPhoneId?: string;
+      save: () => Promise<unknown>;
+    };
+
     // Check DB limits for this client
-    let user;
+    let user: UserProfile | null = null;
     try {
       await connectToDatabase();
       if (serviceCode) {
-        user = await User.findOne({ serviceCode });
-        if (user) {
+        const foundUser = await User.findOne({ serviceCode });
+        if (foundUser) {
+          user = {
+            messagesSent: foundUser.messagesSent ?? 0,
+            messageCap: foundUser.messageCap ?? 0,
+            metaPhoneId: foundUser.metaPhoneId || undefined,
+            save: () => foundUser.save()
+          };
+
           if (user.messagesSent + contacts.length > user.messageCap) {
-            return NextResponse.json({ 
-              success: false, 
-              error: `Sending this will exceed your cap of ${user.messageCap} messages.` 
+            return NextResponse.json({
+              success: false,
+              error: `Sending this will exceed your cap of ${user.messageCap} messages.`
             }, { status: 403 });
           }
         }
       }
-    } catch (dbErr) {
-      console.warn("DB check skipped.");
+    } catch {
+      console.warn('DB check skipped.');
     }
 
     // Use the client's custom Meta Phone ID if they have one, otherwise fallback to the central one
@@ -51,10 +65,10 @@ export async function POST(req: Request) {
 
       // Send the custom text message to WhatsApp!
       const payload = {
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
         to: formattedPhone,
-        type: "text",
+        type: 'text',
         text: {
           preview_url: false,
           body: message
@@ -64,7 +78,7 @@ export async function POST(req: Request) {
       const res = await fetch(url, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${ACCESS_TOKEN}`,
+          Authorization: `Bearer ${ACCESS_TOKEN}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload)
@@ -74,7 +88,7 @@ export async function POST(req: Request) {
         sentCount++;
       } else {
         const errText = await res.text();
-        console.error("Meta API Error:", errText);
+        console.error('Meta API Error:', errText);
         failCount++;
       }
     }
@@ -85,13 +99,14 @@ export async function POST(req: Request) {
       await user.save();
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       sent: sentCount,
       failed: failCount
     });
 
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

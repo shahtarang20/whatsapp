@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 
 export default function Home() {
+  const router = useRouter();
   const [contacts, setContacts] = useState<string[]>([]);
   const [fileName, setFileName] = useState('');
   const [message, setMessage] = useState('');
@@ -19,7 +21,7 @@ export default function Home() {
     if (file.name.endsWith('.csv')) {
       Papa.parse(file, {
         complete: (result) => {
-          extractNumbers(result.data as any[][]);
+          extractNumbers(result.data as unknown[][]);
         }
       });
     } else if (file.name.match(/\.xls(x)?$/)) {
@@ -29,8 +31,8 @@ export default function Home() {
         const wb = XLSX.read(bstr, { type: 'binary' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
-        extractNumbers(data as any[][]);
+        const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as unknown[][];
+        extractNumbers(data);
       };
       reader.readAsBinaryString(file);
     } else {
@@ -38,24 +40,23 @@ export default function Home() {
     }
   };
 
-  const extractNumbers = (data: any[][]) => {
-    const numbers: string[] = [];
-    data.forEach(row => {
-      if(Array.isArray(row)) {
-        row.forEach(cell => {
-           if (cell) {
-             const str = String(cell).replace(/\D/g, ''); // keep only digits
-             // Basic check: length 10-15 usually indicates a valid phone number
-             if (str.length >= 10 && str.length <= 15) {
-               numbers.push(str);
-             }
-           }
-        });
-      }
+  const extractNumbers = (data: unknown[][]) => {
+    const numbers = new Set<string>();
+
+    data.forEach((row) => {
+      if (!Array.isArray(row)) return;
+
+      row.forEach((cell) => {
+        if (cell == null) return;
+
+        const str = String(cell).replace(/\D/g, '');
+        if (str.length >= 10 && str.length <= 15) {
+          numbers.add(str);
+        }
+      });
     });
-    // Remove duplicates
-    const uniqueNumbers = [...new Set(numbers)];
-    setContacts(uniqueNumbers);
+
+    setContacts([...numbers]);
   };
 
   return (
@@ -63,9 +64,9 @@ export default function Home() {
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
         <button 
           onClick={() => {
-            document.cookie = "user_role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            document.cookie = 'user_role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
             localStorage.removeItem('client_user');
-            window.location.href = '/login';
+            router.push('/login');
           }}
           style={{ background: 'rgba(255, 60, 60, 0.1)', color: '#ff4d4d', border: '1px solid rgba(255, 60, 60, 0.3)', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s ease' }}
         >
@@ -133,7 +134,7 @@ export default function Home() {
               onChange={(e) => setMessage(e.target.value)}
             ></textarea>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '12px', lineHeight: '1.5' }}>
-              <strong>Important WhatsApp Rule:</strong> Meta does not allow sending completely free-form messages as the first message. We will automatically inject what you type here into an approved template (like <em>"Update: [Your Message Here]"</em>) to bypass this restriction!
+              <strong>Important WhatsApp Rule:</strong> Meta does not allow sending completely free-form messages as the first message. We will automatically inject what you type here into an approved template (like <em>Update: [Your Message Here]</em>) to bypass this restriction!
             </p>
           </div>
 
